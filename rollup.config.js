@@ -2,29 +2,19 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
 import {terser} from 'rollup-plugin-terser';
-import peerDepsExternal from 'rollup-plugin-peer-deps-external';
-import svgr from '@svgr/rollup';
-import {babel} from '@rollup/plugin-babel';
-import copy from 'rollup-plugin-copy';
-import json from '@rollup/plugin-json';
+import external from 'rollup-plugin-peer-deps-external';
+import postcss from 'rollup-plugin-postcss';
 import url from '@rollup/plugin-url';
+import svgr from '@svgr/rollup';
+import json from '@rollup/plugin-json';
+import dts from 'rollup-plugin-dts';
 
 const packageJson = require('./package.json');
-
-const globals = {
-  ...packageJson.dependencies,
-  ...packageJson.devDependencies,
-};
 
 export default [
   {
     input: 'src/index.ts',
     external: [
-      'react',
-      'react-native',
-      'react-native-svg',
-      'styled-compnents',
-      Object.keys(globals),
       ...Object.keys(packageJson.dependencies).filter(dep =>
         dep.startsWith('react-native'),
       ),
@@ -34,39 +24,33 @@ export default [
         file: packageJson.main,
         format: 'cjs',
         sourcemap: true,
-        name: 'uangcermatmobiletoolkit',
+        name: 'react-lib',
+      },
+      {
+        file: packageJson.module,
+        format: 'esm',
+        sourcemap: true,
       },
     ],
     plugins: [
-      copy({
-        targets: [
-          {
-            src: ['src/assets/icons/**/*', '!**/*.ts'],
-            dest: 'dist/src/assets/icons/',
-          },
-          {
-            src: ['src/assets/fonts/**/*'],
-            dest: 'dist/src/assets/fonts/',
-          },
-        ],
-      }),
-      peerDepsExternal(),
-      terser(),
-      resolve({
-        browser: true,
-      }),
+      external(),
+      resolve(),
       commonjs(),
-      babel({
-        exclude: 'node_modules/**',
-        presets: ['@babel/preset-env', '@babel/preset-react'],
-      }),
       typescript({tsconfig: './tsconfig.json'}),
+      postcss(),
+      terser(),
       svgr(),
       url({
-        include: ['**/*.woff', '**/*.woff2', '**/*.ttf', '**/*.otf', '**/*.svg'],
-        limit: Infinity
+        include: ['**/*.otf', '**/*.svg'],
+        limit: Infinity,
+        emitFiles: true,
       }),
       json(),
     ],
+  },
+  {
+    input: 'dist/esm/types/src/index.d.ts',
+    output: [{file: 'dist/index.d.ts', format: 'esm'}],
+    plugins: [dts.default()],
   },
 ];
